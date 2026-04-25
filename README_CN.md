@@ -48,7 +48,7 @@ Fabric-TPA 提供了一个适合普通玩家使用的直接传送命令，在保
 
 ## 环境要求
 
-- - Minecraft (兼容指定的Fabric Loader版本)
+- Minecraft (兼容指定的Fabric Loader版本)
 - Fabric Loader
 - Fabric API
 - Java `21` 或更高版本
