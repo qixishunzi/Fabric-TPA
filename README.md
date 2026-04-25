@@ -48,7 +48,7 @@ The mod focuses on a simple workflow:
 
 ## Requirements
 
-- Minecraft `1.21.11`
+- - Minecraft (compatible with specified Fabric Loader versions)
 - Fabric Loader
 - Fabric API
 - Java `21` or newer
