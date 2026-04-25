@@ -1,0 +1,64 @@
+plugins {
+    id 'fabric-loom' version "${loom_version}"
+    id 'maven-publish'
+}
+
+group = project.maven_group
+version = "${project.mod_version}-mc${project.minecraft_version}"
+base.archivesName = project.mod_id
+
+repositories {
+    mavenCentral()
+    maven { url = 'https://maven.fabricmc.net/' }
+}
+
+sourceSets {
+    main {
+        java.setSrcDirs(['src/main/java/com/fabrictpa'])
+        resources.setSrcDirs(['src/main/resources'])
+    }
+    test {
+        java.setSrcDirs([])
+        resources.setSrcDirs([])
+    }
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:${project.minecraft_version}"
+    mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
+    modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+    modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+    compileOnly "org.jetbrains:annotations:${project.jetbrains_annotations_version}"
+}
+
+processResources {
+    inputs.property 'id', project.mod_id
+    inputs.property 'name', project.mod_name
+    inputs.property 'version', project.version
+
+    filesMatching('fabric.mod.json') {
+        expand([
+            id: project.mod_id,
+            name: project.mod_name,
+            version: project.version,
+        ])
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    it.options.encoding = 'UTF-8'
+    it.options.release.set(21)
+}
+
+java {
+    withSourcesJar()
+}
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            artifactId = project.mod_id
+            from components.java
+        }
+    }
+}
