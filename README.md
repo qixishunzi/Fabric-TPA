@@ -48,10 +48,8 @@ The mod focuses on a simple workflow:
 
 ## Requirements
 
-- Minecraft (compatible with specified Fabric Loader versions)
 - Fabric Loader
 - Fabric API
-- Java `21` or newer
 
 ## Build
 
@@ -63,3 +61,4 @@ The mod focuses on a simple workflow:
 
 - This is a server-side mod and does not need to be installed on clients
 - The shared home is stored in the world save folder
+- Version compatibility should be checked from the current release information
