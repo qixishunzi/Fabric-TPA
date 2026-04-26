@@ -7,18 +7,18 @@ import java.util.Optional;
 
 import org.jetbrains.annotations.Nullable;
 
-import net.minecraft.nbt.NbtCompound;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.NbtAccounter;
 import net.minecraft.nbt.NbtIo;
-import net.minecraft.nbt.NbtSizeTracker;
-import net.minecraft.registry.RegistryKey;
-import net.minecraft.registry.RegistryKeys;
+import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.WorldSavePath;
-import net.minecraft.util.math.Vec3d;
-import net.minecraft.world.World;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.storage.LevelResource;
+import net.minecraft.world.phys.Vec3;
 
 public final class HomeStorage {
     private static final String FILE_NAME = "home.dat";
@@ -33,20 +33,20 @@ public final class HomeStorage {
     }
 
     public static HomeStorage load(MinecraftServer server) {
-        Path dir = server.getSavePath(WorldSavePath.ROOT).resolve(FabricTpaMod.MOD_ID);
+        Path dir = server.getWorldPath(LevelResource.ROOT).resolve(FabricTpaMod.MOD_ID);
         Path filePath = dir.resolve(FILE_NAME);
         HomeStorage storage = new HomeStorage(server, filePath);
 
         try {
             Files.createDirectories(dir);
             if (Files.exists(filePath) && Files.size(filePath) > 0) {
-                NbtCompound nbt = NbtIo.readCompressed(filePath, NbtSizeTracker.ofUnlimitedBytes());
+                CompoundTag nbt = NbtIo.readCompressed(filePath, NbtAccounter.unlimitedHeap());
                 if (nbt != null) {
-                    nbt.getCompound("home").ifPresent(homeNbt -> storage.home = SavedLocation.fromNbt(homeNbt));
+                    storage.home = SavedLocation.fromNbt(nbt.getCompound("home").orElse(null));
                 }
             }
         } catch (Exception exception) {
-            FabricTpaMod.LOGGER.error("加载公共家失败: {}", filePath, exception);
+            FabricTpaMod.LOGGER.error("Failed to load shared home from {}", filePath, exception);
         }
 
         return storage;
@@ -56,13 +56,13 @@ public final class HomeStorage {
         return Optional.ofNullable(this.home);
     }
 
-    public void setHome(ServerPlayerEntity player) {
+    public void setHome(ServerPlayer player) {
         this.home = SavedLocation.fromPlayer(player);
         this.save();
     }
 
     public void save() {
-        NbtCompound root = new NbtCompound();
+        CompoundTag root = new CompoundTag();
         if (this.home != null) {
             root.put("home", this.home.toNbt());
         }
@@ -71,32 +71,36 @@ public final class HomeStorage {
             Files.createDirectories(this.filePath.getParent());
             NbtIo.writeCompressed(root, this.filePath);
         } catch (IOException exception) {
-            FabricTpaMod.LOGGER.error("保存公共家失败: {}", this.filePath, exception);
+            FabricTpaMod.LOGGER.error("Failed to save shared home to {}", this.filePath, exception);
         }
     }
 
-    public ServerWorld getWorld(SavedLocation location) {
-        ServerWorld world = this.server.getWorld(location.dimension());
+    public ServerLevel getWorld(SavedLocation location) {
+        ServerLevel world = this.server.getLevel(location.dimension());
         if (world == null) {
-            throw new IllegalStateException("家的目标维度不存在: " + location.dimension().getValue());
+            throw new IllegalStateException("Home dimension is missing: " + location.dimension().identifier());
         }
         return world;
     }
 
-    public record SavedLocation(RegistryKey<World> dimension, Vec3d pos, float yaw, float pitch) {
-        public static SavedLocation fromPlayer(ServerPlayerEntity player) {
-            return new SavedLocation(player.getEntityWorld().getRegistryKey(), player.getEntityPos(), player.getYaw(), player.getPitch());
+    public record SavedLocation(ResourceKey<Level> dimension, Vec3 pos, float yaw, float pitch) {
+        public static SavedLocation fromPlayer(ServerPlayer player) {
+            return new SavedLocation(player.level().dimension(), player.position(), player.getYRot(), player.getXRot());
         }
 
-        public static SavedLocation fromNbt(NbtCompound nbt) {
+        public static @Nullable SavedLocation fromNbt(@Nullable CompoundTag nbt) {
+            if (nbt == null) {
+                return null;
+            }
+
             Identifier identifier = Identifier.tryParse(nbt.getString("dimension").orElse("minecraft:overworld"));
             if (identifier == null) {
                 identifier = Identifier.tryParse("minecraft:overworld");
             }
 
             return new SavedLocation(
-                RegistryKey.of(RegistryKeys.WORLD, identifier),
-                new Vec3d(
+                ResourceKey.create(Registries.DIMENSION, identifier),
+                new Vec3(
                     nbt.getDouble("x").orElse(0.0),
                     nbt.getDouble("y").orElse(0.0),
                     nbt.getDouble("z").orElse(0.0)
@@ -106,9 +110,9 @@ public final class HomeStorage {
             );
         }
 
-        public NbtCompound toNbt() {
-            NbtCompound nbt = new NbtCompound();
-            nbt.putString("dimension", this.dimension.getValue().toString());
+        public CompoundTag toNbt() {
+            CompoundTag nbt = new CompoundTag();
+            nbt.putString("dimension", this.dimension.identifier().toString());
             nbt.putDouble("x", this.pos.x);
             nbt.putDouble("y", this.pos.y);
             nbt.putDouble("z", this.pos.z);

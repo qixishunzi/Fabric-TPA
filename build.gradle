@@ -1,6 +1,7 @@
 plugins {
-    id 'fabric-loom' version "${loom_version}"
+    id 'net.fabricmc.fabric-loom' version "${loom_version}"
     id 'maven-publish'
+    id 'idea'
 }
 
 group = project.maven_group
@@ -8,8 +9,20 @@ version = "${project.mod_version}-mc${project.minecraft_version}"
 base.archivesName = project.mod_id
 
 repositories {
+    gradlePluginPortal()
     mavenCentral()
-    maven { url = 'https://maven.fabricmc.net/' }
+    maven { name 'Fabric'; url 'https://maven.fabricmc.net/' }
+    maven { url 'https://maven.firstdark.dev/releases' }
+}
+
+loom {
+    splitEnvironmentSourceSets()
+
+    mods {
+        "${project.mod_id}" {
+            sourceSet sourceSets.main
+        }
+    }
 }
 
 sourceSets {
@@ -25,9 +38,8 @@ sourceSets {
 
 dependencies {
     minecraft "com.mojang:minecraft:${project.minecraft_version}"
-    mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
-    modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
-    modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+    implementation "net.fabricmc:fabric-loader:${project.loader_version}"
+    implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
     compileOnly "org.jetbrains:annotations:${project.jetbrains_annotations_version}"
 }
 
@@ -47,17 +59,29 @@ processResources {
 
 tasks.withType(JavaCompile).configureEach {
     it.options.encoding = 'UTF-8'
-    it.options.release.set(21)
+    it.options.release.set(25)
 }
 
 java {
     withSourcesJar()
+    sourceCompatibility = JavaVersion.VERSION_25
+    targetCompatibility = JavaVersion.VERSION_25
+}
+
+jar {
+    inputs.property 'archivesName', project.base.archivesName
+
+    from('LICENSE') {
+        rename { "${it}_${inputs.properties.archivesName}" }
+    }
 }
 
 publishing {
     publications {
-        mavenJava(MavenPublication) {
+        create('mavenJava', MavenPublication) {
             artifactId = project.mod_id
+            groupId = project.maven_group
+            version = project.version
             from components.java
         }
     }
